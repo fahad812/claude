@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Claude — Inside the Giant</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;600&display=swap">
+<style>
+:root{--bg:#f6f1ea;--fg:#1b1712;--mut:#5f574c;--acc:#c4553a;--acc2:#5b3fe0;--glass:rgba(255,252,247,.62);--line:rgba(27,23,18,.18);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#07060d;--fg:#f1ecff;--mut:#b2a9c9;--acc:#ff9e7a;--acc2:#8f7bff;--glass:rgba(14,11,26,.55);--line:rgba(241,236,255,.2);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#07060d;--fg:#f1ecff;--mut:#b2a9c9;--acc:#ff9e7a;--acc2:#8f7bff;--glass:rgba(14,11,26,.55);--line:rgba(241,236,255,.2);color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+h1,h2{font-family:Fraunces,Georgia,serif;font-weight:600;line-height:1.05;letter-spacing:-.02em}
+#gl{position:fixed;inset:0;width:100%;height:100%;z-index:0}
+#hud{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:5;display:flex;justify-content:space-between;padding:0 5vw;font:600 11px/1 Inter,monospace;letter-spacing:.14em;color:var(--mut);pointer-events:none}
+#hud b{color:var(--acc)}
+#bar{position:fixed;right:14px;top:20%;height:60%;width:3px;background:var(--line);z-index:5;border-radius:3px}
+#bar i{display:block;width:100%;height:0;background:linear-gradient(var(--acc),var(--acc2));border-radius:3px}
+.pane{position:relative;z-index:2;min-height:120vh;display:flex;align-items:center;padding:0 7vw;perspective:1100px}
+.pane.r{justify-content:flex-end}
+.box{max-width:520px;padding:34px;border:1px solid var(--line);border-radius:26px;background:var(--glass);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);will-change:transform,opacity;transform-origin:center}
+.pane.c{justify-content:center;text-align:center}
+.pane.c .box{max-width:760px;background:none;border:0;backdrop-filter:none}
+h1{font-size:clamp(48px,10vw,120px)}
+h2{font-size:clamp(30px,4.6vw,52px);margin-bottom:14px}
+h1 em{font-style:italic;color:var(--acc)}
+p{color:var(--mut)}
+.box p+p{margin-top:12px}
+ul{list-style:none;padding:0}
+li{padding:10px 0;border-bottom:1px solid var(--line);color:var(--mut)}
+li b{color:var(--fg);margin-right:8px}
+li span{color:var(--acc);font-size:12px;letter-spacing:.1em;font-weight:600;margin-right:8px}
+.hint{margin-top:30px;font-size:12px;letter-spacing:.3em;color:var(--acc)}
+#err{display:none;position:fixed;top:70px;left:5vw;z-index:6;color:var(--mut)}
+.box{box-shadow:0 0 50px -14px var(--acc)}
+.pane.c .box.wide{max-width:980px;width:100%;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.cg,.gal{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin:18px 0 8px}
+figure{margin:0}
+figure canvas,figure svg{width:100%;height:170px;display:block;border:1px solid var(--line);border-radius:16px;background:var(--glass)}
+figcaption{font-size:12px;letter-spacing:.1em;color:var(--mut);margin-top:6px}
+.note{font-size:12px;opacity:.8}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}.chips span{padding:6px 14px;border:1px solid var(--acc);color:var(--acc);border-radius:99px;font-size:13px}
+.fa{fill:var(--acc)}.fb{fill:var(--acc2)}.sa{stroke:var(--acc);fill:none;stroke-width:1.5}.sb{stroke:var(--acc2);fill:none;stroke-width:1.5}
+.ln{stroke-dasharray:4 6;animation:dash 1.5s linear infinite;stroke-width:1}
+@keyframes dash{to{stroke-dashoffset:-20}}
+.pane .box.lap{max-width:620px;width:100%;padding:0;background:none;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.lp{background:#15131c;border:10px solid #2a2733;border-bottom-width:14px;border-radius:16px 16px 0 0;aspect-ratio:16/10;overflow:hidden;box-shadow:0 0 70px -10px var(--acc)}
+.scr{height:100%;display:flex;flex-direction:column;font:12px/1.55 ui-monospace,Menlo,Consolas,monospace;color:#e8e4f5}
+.bar2{display:flex;gap:6px;align-items:center;padding:8px 10px;background:#1f1c29}
+.bar2 i{width:9px;height:9px;border-radius:50%;background:#ff5f57}.bar2 i:nth-child(2){background:#febc2e}.bar2 i:nth-child(3){background:#28c840}
+.bar2 span{margin-left:8px;color:#8d87a3;font-size:11px}
+.scr pre{flex:1;margin:0;padding:12px 14px;white-space:pre-wrap;overflow:hidden;font:inherit}
+.bs{height:14px;width:112%;margin-left:-6%;background:linear-gradient(#cfcbd8,#8d8999);border-radius:0 0 18px 18px;box-shadow:0 22px 40px -12px rgba(0,0,0,.5)}
+.cap{text-align:center;margin-top:16px;font-size:13px;letter-spacing:.12em;color:var(--mut)}
+.ke{color:#ff6b6b}.kg{color:#5ee89a}.kd{color:#8d87a3}.ka{color:#ffb38a}
+.chat{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:12px;overflow:hidden;font:12.5px/1.45 Inter,system-ui,sans-serif}
+.m{padding:8px 12px;border-radius:12px;margin:5px 0;max-width:86%}
+.us{background:#2c2840;margin-left:auto}.cl{background:#3a2a30}
+.site{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:14px;align-content:start}
+.site div{border-radius:6px;background:linear-gradient(90deg,var(--acc),var(--acc2));opacity:0;animation:blk 8s ease-in-out infinite}
+.site .n{grid-column:1/-1;height:14px}.site .hr{grid-column:1/-1;height:64px}.site .cd{height:56px}
+@keyframes blk{0%,8%{opacity:0;transform:translateY(14px) scale(.92)}16%,86%{opacity:.85;transform:none}96%,100%{opacity:0}}
+@media(max-width:600px){.scr{font-size:10.5px}.chat{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.site div{animation:none;opacity:.85}}
+.nd{animation:pl 2s ease-in-out infinite}@keyframes pl{50%{opacity:.25}}
+@media(prefers-reduced-motion:reduce){.ln,.nd{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas><div id="bar"><i></i></div>
+<div id="hud"><span>AZ <b id="az">0</b>°</span><span>ELEV <b id="el">0</b>°</span><span>DIST <b id="di">0</b></span></div>
+<div id="err">3D isn’t available on this device, but the story is below.</div>
+
+<div class="pane c"><div class="box"><h1>Step inside <em>Claude</em></h1><p style="margin-top:18px;font-size:18px">An interactive portrait of Claude, built live by Claude. Scroll, and watch the world turn around it.</p><div class="hint">SCROLL ↓</div></div></div>
+
+<div class="pane r"><div class="box lap"><div class="lp"><div class="scr"><div class="bar2"><i></i><i></i><i></i><span>average.py</span></div><pre id="t1"></pre></div></div><div class="bs"></div><p class="cap">FINDING AND FIXING BUGS</p></div></div>
+
+<div class="pane"><div class="box"><h2>Who I am</h2><p>I’m Claude, an AI assistant made by Anthropic. I write, code, analyze and reason alongside people, aiming to be helpful, honest and careful.</p><p>I live in the Claude apps, in Claude Code, in Cowork, in tools like Chrome and Excel, and through an API developers build on.</p></div></div>
+
+<div class="pane r"><div class="box"><h2>The founders</h2><p>Anthropic was founded in 2021 by former OpenAI researchers, including siblings Dario Amodei (CEO) and Daniela Amodei (President).</p><p>It’s based in San Francisco and is a public benefit corporation focused on making the transition to powerful AI go safely.</p></div></div>
+
+<div class="pane"><div class="box"><h2>My history</h2><ul>
+<li><span>2021</span>Anthropic begins</li>
+<li><span>2022</span>Constitutional AI research published</li>
+<li><span>MAR 2023</span>Claude launches publicly</li>
+<li><span>2024</span>The Claude 3 family: Haiku, Sonnet, Opus</li>
+<li><span>2025</span>Claude Code and the Claude 4 generation</li>
+<li><span>JUN 2026</span>Fable 5 and Mythos 5 launch; access paused June 12 for export controls, restored July 1</li>
+</ul></div></div>
+
+<div class="pane c"><div class="box lap"><div class="lp"><div class="scr"><div class="bar2"><i></i><i></i><i></i><span>Claude — chat</span></div><div class="chat" id="t2"></div></div></div><div class="bs"></div><p class="cap">ANSWERING, EXPLAINING, TRANSLATING</p></div></div>
+
+<div class="pane r"><div class="box"><h2>My models</h2><ul>
+<li><b>Haiku 5.5</b>fast and light</li>
+<li><b>Sonnet 5.5</b>balanced everyday model</li>
+<li><b>Opus 5.5</b>deep, long reasoning</li>
+<li><b>Fable 5.2</b>Mythos tier, extra safety measures</li>
+<li><b>Mythos Preview</b>limited access via Project Glasswing</li>
+</ul></div></div>
+
+<div class="pane"><div class="box"><h2>How I’m made</h2><p>I’m trained on large amounts of text and other data to understand and reason with language, then shaped with human feedback and written principles, an approach Anthropic calls Constitutional AI.</p><p>I’m not a person, and I can be wrong, so please double-check anything important.</p></div></div>
+
+<div class="pane r"><div class="box"><h2>What I can do</h2><ul><li><b>Write</b>emails, stories, essays, edits</li><li><b>Code</b>build, debug and explain software</li><li><b>Analyze</b>data, math, documents</li><li><b>Translate</b>between many languages</li><li><b>See</b>images and PDFs you share</li><li><b>Act</b>search the web and use connected tools</li><li><b>Talk</b>by voice in the Claude app</li></ul></div></div>
+
+<div class="pane"><div class="box lap"><div class="lp"><div class="scr"><div class="bar2"><i></i><i></i><i></i><span>index.html</span></div><div class="site"><div class="n"></div><div class="hr" style="animation-delay:.6s"></div><div class="cd" style="animation-delay:1.2s"></div><div class="cd" style="animation-delay:1.6s"></div><div class="cd" style="animation-delay:2s"></div></div></div></div><div class="bs"></div><p class="cap">BUILDING WEBSITES, LIKE THIS ONE</p></div></div>
+
+<div class="pane c"><div class="box wide"><h2>My pulse</h2><div class="cg"><figure><canvas id="c1"></canvas><figcaption>LIVE CONVERSATION FLOW</figcaption></figure><figure><canvas id="c2"></canvas><figcaption>WHERE I HELP</figcaption></figure><figure><canvas id="c3"></canvas><figcaption>SKILL RADAR</figcaption></figure></div><p class="note">Animated for illustration, not real usage data.</p></div></div>
+
+<div class="pane c"><div class="box wide"><h2>Pictures of how I think</h2><div class="gal"><figure><div id="im1"></div><figcaption>NEURAL WEB</figcaption></figure><figure><div id="im2"></div><figcaption>ORBITING IDEAS</figcaption></figure><figure><div id="im3"></div><figcaption>VOICE WAVES</figcaption></figure></div><div class="chips"><span>Curious</span><span>Warm</span><span>Direct</span><span>Careful</span><span>Playful</span></div></div></div>
+
+<div class="pane r"><div class="box lap"><div class="lp"><div class="scr"><div class="bar2"><i></i><i></i><i></i><span>update.txt</span></div><pre id="t4"></pre></div></div><div class="bs"></div><p class="cap">WRITING AND EDITING</p></div></div>
+
+<div class="pane"><div class="box"><h2>My limits</h2><p>I don’t remember past chats unless memory is turned on. My training knowledge ends around June 2026, so for newer things I search the web.</p><p>I can make mistakes, and I won’t pretend otherwise. Claude products are also ad-free.</p></div></div>
+
+<div class="pane c"><div class="box"><h2>Helpful. Honest. Harmless.</h2><p style="font-size:18px">That’s the compass I try to follow in every conversation. Thanks for flying through.</p></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const still=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const boxes=[...document.querySelectorAll('.box')],$=id=>document.getElementById(id);
+let ps=0,vel=0,lastY=scrollY,gl=null,hue=200,dk=true;const mq=matchMedia('(prefers-color-scheme:dark)');
+try{
+const A=[],B=[],F=[];
+const R=new THREE.WebGLRenderer({canvas:$('gl'),antialias:true});
+R.setPixelRatio(Math.min(devicePixelRatio,2));
+const sc=new THREE.Scene();sc.fog=new THREE.FogExp2(0x000000,.014);
+const cam=new THREE.PerspectiveCamera(60,1,.1,400);
+const wm=(L,o)=>{const m=new THREE.MeshBasicMaterial({wireframe:true,transparent:true,opacity:o});L.push(m);return m};
+const giant=new THREE.Group();sc.add(giant);
+const shell=new THREE.Mesh(new THREE.IcosahedronGeometry(6,2),wm(A,.55));giant.add(shell);
+const mid=new THREE.Mesh(new THREE.IcosahedronGeometry(3.4,1),wm(B,.7));giant.add(mid);
+const coreM=new THREE.MeshBasicMaterial();A.push(coreM);
+const core=new THREE.Mesh(new THREE.SphereGeometry(1.5,32,32),coreM);giant.add(core);
+const rings=[];
+for(let i=0;i<3;i++){const g=new THREE.Group(),rad=9+i*2.6;
+const t=new THREE.Mesh(new THREE.TorusGeometry(rad,.04,8,220),new THREE.MeshBasicMaterial());(i%2?B:A).push(t.material);
+const o=new THREE.Mesh(new THREE.SphereGeometry(.35+i*.1,16,16),new THREE.MeshBasicMaterial());(i%2?A:B).push(o.material);o.position.x=rad;
+g.add(t,o);g.rotation.set(i*1.1,i*.7,i*.4);g.userData.s=(.3+i*.2)*(i%2?-1:1);giant.add(g);rings.push(g)}
+const shards=[];
+for(let i=0;i<70;i++){const m=new THREE.Mesh(new THREE.TetrahedronGeometry(.3+Math.random()*.7),wm(i%2?A:B,.8));
+const r=12+Math.random()*20,a=Math.random()*6.28,b=(Math.random()-.5)*2;
+m.position.set(Math.cos(a)*r,b*r*.5,Math.sin(a)*r);m.userData.r=[Math.random()*.02,Math.random()*.02];sc.add(m);shards.push(m)}
+giant.visible=false;shards.forEach(m=>m.visible=false);
+const gal=new THREE.Group();gal.rotation.x=.35;sc.add(gal);
+const tc=document.createElement('canvas');tc.width=tc.height=64;const tg=tc.getContext('2d'),gr=tg.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(1,'rgba(255,255,255,0)');tg.fillStyle=gr;tg.fillRect(0,0,64,64);const tex=new THREE.CanvasTexture(tc);
+function arm(L,n,r0,r1,sz,op){const p=new Float32Array(n*3);for(let i=0;i<n;i++){const r=r0+Math.pow(Math.random(),1.5)*(r1-r0),a=Math.floor(Math.random()*3)*2.094+r*.42+(Math.random()-.5)*.55*(1+r*.05),y=(Math.random()-.5)*Math.max(.3,1.4-r*.04);p.set([Math.cos(a)*r,y,Math.sin(a)*r],i*3)}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(p,3));const m=new THREE.PointsMaterial({size:sz,map:tex,transparent:true,opacity:op,depthWrite:false});L.push(m);gal.add(new THREE.Points(g,m))}
+arm(A,3500,1,10,.35,.9);arm(B,4500,10,26,.4,.8);
+const gs=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,opacity:.9,depthWrite:false}));gs.scale.setScalar(9);A.push(gs.material);gal.add(gs);
+const N=1800,pos=new Float32Array(N*3);
+for(let i=0;i<N;i++){const r=40+Math.random()*90,a=Math.random()*6.28,b=Math.acos(2*Math.random()-1);
+pos.set([r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a)],i*3)}
+const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+const spm=new THREE.PointsMaterial({size:.5,transparent:true,opacity:.8});F.push(spm);
+const stars=new THREE.Points(sg,spm);sc.add(stars);
+function theme(){const bg=new THREE.Color(css('--bg')),a=new THREE.Color(css('--acc')),b=new THREE.Color(css('--acc2')),f=new THREE.Color(css('--fg'));
+A.forEach(m=>m.color.copy(a));B.forEach(m=>m.color.copy(b));F.forEach(m=>m.color.copy(f));R.setClearColor(bg);sc.fog.color.copy(bg)}
+theme();matchMedia('(prefers-color-scheme:dark)').addEventListener('change',theme);
+function size(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+size();addEventListener('resize',size);
+gl=function(t){
+ const L=dk?.68:.44;A.forEach(m=>m.color.setHSL(hue/360,.85,L));B.forEach(m=>m.color.setHSL(((hue+70)%360)/360,.85,L));F.forEach(m=>m.color.setHSL(((hue+35)%360)/360,.6,dk?.85:.25));const bgc=new THREE.Color().setHSL(((hue+180)%360)/360,dk?.45:.4,dk?.05:.94);R.setClearColor(bgc);sc.fog.color.copy(bgc);
+ const max=document.documentElement.scrollHeight-innerHeight,p=max>0?scrollY/max:0;ps+=(p-ps)*.06;
+ const az=ps*Math.PI*5+(still?0:t*.00008),el=Math.sin(ps*Math.PI*3)*.95,
+ d=27-22.5*Math.pow(Math.sin(Math.PI*Math.min(ps,1)),1.5)+Math.sin(ps*14)*1.2;
+ cam.position.set(d*Math.cos(el)*Math.sin(az),d*Math.sin(el),d*Math.cos(el)*Math.cos(az));
+ const roll=Math.sin(ps*8)*.5+vel*.015;cam.up.set(Math.sin(roll),Math.cos(roll),0);cam.lookAt(0,0,0);
+ cam.fov=60+Math.min(Math.abs(vel),40)*.6;cam.updateProjectionMatrix();
+ if(!still){gal.rotation.y+=.0015+vel*.001;giant.rotation.y+=.002+vel*.0015;giant.rotation.x=Math.sin(t*.0003)*.2;
+ rings.forEach(g=>g.rotation.z+=g.userData.s*.01);shards.forEach(m=>{m.rotation.x+=m.userData.r[0];m.rotation.y+=m.userData.r[1]});stars.rotation.y+=.0003}
+ core.scale.setScalar(1+Math.sin(t*.003)*.12);
+ $('az').textContent=((az*180/Math.PI)%360+360|0)%360;$('el').textContent=(el*180/Math.PI).toFixed(0);$('di').textContent=d.toFixed(1);
+ R.render(sc,cam)};
+}catch(e){$('err').style.display='block'}
+(function(){let h='<svg viewBox="0 0 200 140">';const C=[[25,70,115],[15,50,90,125],[40,100]],X=[30,100,170];
+for(let c=0;c<2;c++)C[c].forEach(a=>C[c+1].forEach(b=>h+='<line class="ln sa" x1="'+X[c]+'" y1="'+a+'" x2="'+X[c+1]+'" y2="'+b+'"/>'));
+C.forEach((col,c)=>col.forEach((y,i)=>h+='<circle class="nd '+((c+i)%2?'fa':'fb')+'" style="animation-delay:'+(c*.4+i*.3)+'s" cx="'+X[c]+'" cy="'+y+'" r="6"/>'));
+$('im1').innerHTML=h+'</svg>';
+let o='<svg viewBox="0 0 200 140"><circle class="fa" cx="100" cy="70" r="9"/>';
+[0,60,120].forEach((r,i)=>o+='<g transform="rotate('+r+' 100 70)"><ellipse class="'+(i%2?'sb':'sa')+'" cx="100" cy="70" rx="70" ry="24"/><circle class="'+(i%2?'fa':'fb')+'" r="5"><animateMotion dur="'+(4+i*2)+'s" repeatCount="indefinite" path="M170,70 A70,24 0 1,1 30,70 A70,24 0 1,1 170,70"/></circle></g>');
+$('im2').innerHTML=o+'</svg>';
+let w='<svg viewBox="0 0 200 140">';
+for(let i=0;i<19;i++){const q=20+Math.abs(Math.sin(i*.7))*80,d=(.8+(i%5)*.2)+'s';
+w+='<rect class="'+(i%2?'fa':'fb')+'" x="'+(8+i*10)+'" width="6" rx="3" y="'+(70-q/2)+'" height="'+q+'"><animate attributeName="height" values="'+q+';10;'+q+'" dur="'+d+'" repeatCount="indefinite"/><animate attributeName="y" values="'+(70-q/2)+';65;'+(70-q/2)+'" dur="'+d+'" repeatCount="indefinite"/></rect>'}
+$('im3').innerHTML=w+'</svg>'})();
+function charts(t){
+ const L=dk?68:44,c=o=>'hsl('+((hue+o)%360)+',85%,'+L+'%)',tx=dk?'#b2a9c9':'#5f574c',gr=dk?'rgba(241,236,255,.15)':'rgba(27,23,18,.15)';
+ ['c1','c2','c3'].forEach((id,k)=>{const e=$(id),bb=e.getBoundingClientRect();if(bb.bottom<0||bb.top>innerHeight)return;
+  const d=Math.min(devicePixelRatio,2),w=e.clientWidth,h=e.clientHeight;if(e.width!==Math.round(w*d)){e.width=w*d;e.height=h*d}
+  const x=e.getContext('2d');x.setTransform(d,0,0,d,0,0);x.clearRect(0,0,w,h);x.strokeStyle=gr;x.fillStyle=tx;x.font='11px Inter,sans-serif';x.lineWidth=1;
+  if(k==0){for(let g=1;g<5;g++){x.beginPath();x.moveTo(0,g*h/5);x.lineTo(w,g*h/5);x.stroke()}
+   for(let s=0;s<3;s++){x.beginPath();x.strokeStyle=c(s*60);x.lineWidth=2;
+    for(let i=0;i<=w;i+=3){const y=h/2+Math.sin(i*.03+t*.002*(s+1))*h*.22+Math.sin(i*.07-t*.0013+s)*h*.12;i?x.lineTo(i,y):x.moveTo(i,y)}x.stroke()}}
+  else if(k==1){const n=['Write','Code','Analyze','Math','Translate','Research'],bw=w/n.length;
+   n.forEach((s,i)=>{const bh=(.45+.4*Math.sin(t*.0015+i*1.3))*(h-30);x.fillStyle=c(i*40);x.fillRect(i*bw+8,h-22-bh,bw-16,bh);x.fillStyle=tx;x.textAlign='center';x.fillText(s,i*bw+bw/2,h-7)})}
+  else{const cx=w/2,cy=h/2,R=h*.42;
+   for(let r=1;r<=3;r++){x.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3-Math.PI/2;x.lineTo(cx+Math.cos(a)*R*r/3,cy+Math.sin(a)*R*r/3)}x.closePath();x.strokeStyle=gr;x.stroke()}
+   x.beginPath();for(let i=0;i<6;i++){const a=i*Math.PI/3-Math.PI/2+t*.0004,v=.55+.4*Math.sin(t*.001+i*2);x.lineTo(cx+Math.cos(a)*R*v,cy+Math.sin(a)*R*v)}
+   x.closePath();x.fillStyle=c(0).replace('hsl','hsla').replace(')',',.3)');x.fill();x.strokeStyle=c(0);x.lineWidth=2;x.stroke()}
+ })}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms)),on=el=>{const b=el.getBoundingClientRect();return b.bottom>0&&b.top<innerHeight};
+async function play(el,steps){while(1){el.innerHTML='';for(const [c,tx,sp,pz] of steps){while(!on(el))await sleep(300);
+ if(c=='!'){el.innerHTML='';await sleep(tx);continue}
+ const s=document.createElement('span');s.className=c;el.appendChild(s);
+ for(const ch of tx){s.textContent+=ch;await sleep(still?0:(sp||22))}await sleep(pz||0)}await sleep(3200)}}
+async function chat(el,qa){while(1){el.innerHTML='';for(const [q,a] of qa){while(!on(el))await sleep(300);
+ const u=document.createElement('div');u.className='m us';u.textContent=q;el.appendChild(u);await sleep(900);
+ const c=document.createElement('div');c.className='m cl';c.textContent='…';el.appendChild(c);await sleep(900);c.textContent='';
+ for(const ch of a){c.textContent+=ch;await sleep(still?0:22)}await sleep(1800);while(el.children.length>4)el.removeChild(el.firstChild)}await sleep(2000)}}
+play($('t1'),[['kd','$ python test.py\n',30,500],['ke','ZeroDivisionError: division by zero\n',18,900],['ka','\nClaude: an empty list has length 0.\nAdding a guard for that case...\n',24,900],['!',300],
+ ['kd','# average.py (fixed)\n',20],['','def average(nums):\n',20],['kg','+   if not nums:\n+       return 0.0\n',26,300],['','    return sum(nums) / len(nums)\n\n',20],['kd','$ python test.py\n',30,500],['kg','\u2713 3 tests passed',30]]);
+chat($('t2'),[['Why does my code crash on an empty list?','Dividing by len([]) means dividing by zero. Check for an empty list first.'],['Summarize relativity in one sentence.','Mass and energy bend space and time, and that bending is what we feel as gravity.'],['Say thank you in 3 languages.','Gracias \u00b7 Merci \u00b7 \u3042\u308a\u304c\u3068\u3046']]);
+play($('t4'),[['ka','Subject: Launch update\n\n',26,300],['','Hi team,\nThe beta ships Friday. Three things left:\n1. Final QA pass\n2. Docs review\n3. Release notes\n\n',26,300],['kd','Drafted by Claude, ready to edit.',28]]);
+let ei=0;
+(function loop(t){
+ vel+=((scrollY-lastY)-vel)*.15;lastY=scrollY;
+ $('bar').firstElementChild.style.height=(ps*100)+'%';
+ if(!still)boxes.forEach((b,i)=>{const r=b.getBoundingClientRect(),d=((r.top+r.height/2)-innerHeight/2)/innerHeight,dir=i%2?-1:1,
+  k=Math.min(1,Math.max(0,(Math.abs(d)-.12)/.45)),e=k*k*(3-2*k),o=Math.min(1,Math.max(0,1.4-Math.abs(d)*1.6));
+  b.style.opacity=o;
+  b.style.transform=e<.001?'none':'rotateY('+(d*55*dir*e)+'deg) rotateX('+(-d*22*e)+'deg) rotateZ('+(vel*.12*dir*e)+'deg) translateZ('+(-Math.abs(d)*220*e)+'px) skewY('+(vel*.15*e)+'deg)'});
+ hue=(ps*360+(still?0:t*.012))%360;dk=mq.matches;{const L=dk?68:44,s=document.documentElement.style;s.setProperty('--acc','hsl('+hue+',85%,'+L+'%)');s.setProperty('--acc2','hsl('+((hue+70)%360)+',85%,'+L+'%)');s.setProperty('--bg','hsl('+((hue+180)%360)+','+(dk?'45%,5%':'40%,94%')+')')}
+ charts(still?0:t);if(gl)gl(t);
+ requestAnimationFrame(loop)})(0);
+</script>
+</body>
+</html>
